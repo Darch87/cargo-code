@@ -1,0 +1,782 @@
+/* site-code.js: built by tools/build.py from src/. Edit src/, then rebuild. */
+function __cxStyle(css){var s=document.createElement('style');s.textContent=css;(document.head||document.documentElement).appendChild(s);}
+;/* =========================================================================
+   DANNY WILLS — HOMEPAGE INDEX + COLLAGE ROLLOVER   (version 2)
+
+   What changed from version 1:
+   - Every project is ONE short block on the homepage (see the template at the top of the
+     homepage). The script builds the year rows and the three columns from those blocks,
+     so adding a project, or a new year, is just pasting one block.
+   - The script never writes into your page content any more. It draws the index, the
+     description and the photos in its own layer, so Cargo can no longer save hundreds
+     of "position: fixed" lines into the page.
+   - The look and the photo rules are the same as before (random sizes and spots, first
+     photo biggest, gaps between photos, no drastic overlaps, never over the text,
+     tap panel on phones, bio when you roll over your name).
+   ========================================================================= */
+(function () {
+  'use strict';
+  var ROOT = document.documentElement;
+  if (ROOT.hasAttribute('data-cx-running')) return;   // already running on this page (Cargo's editor can load the script twice): reload to see code changes
+  ROOT.setAttribute('data-cx-running', '1');
+
+  /* =====================================================================
+     ★★★  SETTINGS YOU WILL USE MOST  ★★★
+     ===================================================================== */
+
+  /* TEXT BOX WIDTH — bigger number = wider description box. 25 is about 7 words per line. */
+  var TEXT_WIDTH = 25;
+
+  /* COLUMN HEADINGS — the three columns, left to right. In a project block you can write the
+     column as the number (1, 2, 3), the roman numeral (I, II, III) or the name (Teaching). */
+  var COLUMNS = [
+    { numeral: 'I',   name: 'Research' },
+    { numeral: 'II',  name: 'Teaching' },
+    { numeral: 'III', name: 'Creative Practice' }
+  ];
+
+  /* SAMPLE PHOTOS — off. A project with no photos shows only its text; a project with no
+     photos and no text shows as a plain title that does nothing on hover or click, and turns
+     on by itself as soon as you add a photo or text to its block. */
+  var SAMPLE_PHOTOS = [];
+  var SAMPLE_COUNT = 8;   // how many sample photos to show (they repeat)
+
+  /* =====================================================================
+     OTHER SETTINGS (same as before)
+     ===================================================================== */
+  var CFG = {
+    textWidth: TEXT_WIDTH,
+    edge: 1.6,            // left edge of the text box (rem); lines up with your name
+    textTop: 11.6,        // the text box starts this far from the top of the screen (rem)
+    alignText: false,     // false = text box always starts at textTop; true = level with the title you roll over
+    archivePath: '/archive',  // web address of the hidden Archive page (its Cargo page URL)
+    nameText: 'Danny Wills',  // the exact words of your name at the top; rolling over it shows your bio
+    maxPhotos: 8,         // most photos shown at once on a computer; a project with more shows its first photo plus a random mix of the rest
+    mobileMaxPhotos: 6,   // the same on phones
+    mobileTextWidth: 62,  // phones: width of the text box (percent of the screen width)
+    mobileTop: 3,         // phones: photos start this far from the top (rem)
+    mobileMaxW: 0.9,      // phones: no photo wider than this fraction of the screen
+    fill: 0.5,            // how much of the free space the photos cover together; fewer photos = each photo bigger
+    leadWeight: 2,        // the FIRST photo of a project is this many times bigger (by area) than the others
+    maxW: 0.6,            // no photo wider than this fraction of the free space
+    maxH: 0.8,            // ... or taller than this fraction of it
+    gap: 1.5,             // space kept between photos (rem)
+    margin: 1.5,          // space kept from the screen edges (rem)
+    top: 4.5,             // photos start this far from the top (rem), keeps "Danny Wills" clear
+    textGap: -2,          // space between text box and photos (rem); negative lets photos tuck into the text column
+    fade: 0.35,           // fade in / out time when rolling over a title (seconds)
+
+    /* THE INDEX (the year rows) */
+    gutter: 1.0,          // space between columns (rem), like the old column sets
+    mobileGutter: 1.2,    // the same on phones (rem)
+    mobileTextScale: 1.3, // phones: index text this many times larger than the site's phone text
+    entryGap: 1,          // blank lines between two projects in the same column
+    rowGap: 1.6,          // blank lines between the last project of a year and the next year
+
+    /* PHONES AND TABLETS (touch screens): tap a title to open a full-screen panel */
+    mPadding: 5,
+    mColGap: 4,
+    mStagger: [6, 14],
+    mWidthLandscape: [66, 100],
+    mWidthPortrait: [76, 100],
+    mPhotoGap: [3, 9]
+  };
+
+  /* ================= STYLES ================= */
+  var css = [
+    ':root { --text-width: min(' + CFG.textWidth + 'vw, ' + CFG.textWidth + 'rem); }',
+    /* the project blocks you write are data: hidden on the page, the script shows them */
+    '.project, .bio-info { display: none !important; }',
+    /* the index the script builds */
+    '.cx-index { display: block; width: 100%; box-sizing: border-box; }',
+    '.cx-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--cx-gutter, ' + CFG.gutter + 'rem); align-items: start; }',
+    '.cx-cell { min-width: 0; }',
+    '.cx-year { text-align: right; font-weight: bold; }',
+    '.cx-head { font-weight: bold; }',
+    '.cx-head u { text-decoration: underline; }',
+    '.cx-entry { display: block; margin-bottom: ' + CFG.entryGap * 1.0 + 'lh; }',
+    '@supports not (margin: 1lh) { .cx-entry { margin-bottom: ' + (CFG.entryGap * 1.2) + 'em; } }',
+    '.cx-row { margin-bottom: ' + CFG.rowGap + 'lh; }',
+    '@supports not (margin: 1lh) { .cx-row { margin-bottom: ' + (CFG.rowGap * 1.2) + 'em; } }',
+    '.cx-title { display: inline-block; position: relative; z-index: 10; cursor: default; }',
+    'body.cx-dim .cx-index .cx-title.open .cx-text, body.cx-dim .cx-index .cx-title.open .cx-text * { transition: none !important; }',   /* the yellow highlight appears instantly */
+    '.cx-text { background-color: rgba(255,255,0,0); transition: background-color ' + CFG.fade + 's ease, color ' + CFG.fade + 's ease, text-decoration-color ' + CFG.fade + 's ease !important; }',
+    /* the layer that holds the description and the photos */
+    '.cx-layer { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 5; pointer-events: none; }',
+    '.cx-photo, .cx-info { position: fixed; opacity: 0; visibility: hidden; pointer-events: none;',
+    '  transition: opacity ' + CFG.fade + 's ease, visibility 0s linear ' + CFG.fade + 's; }',
+    '.cx-photo { object-fit: contain; max-width: none; max-height: none; }',
+    '.cx-info.cx-bio { pointer-events: auto; }',
+    '.cx-bio a, .mpanel-text a { color: inherit; text-decoration: underline; }',
+    '.cx-info { left: ' + CFG.edge + 'rem; top: ' + CFG.textTop + 'rem; width: var(--text-width); font-weight: 400; z-index: 10; }',
+    '.cx-layer.on .cx-photo, .cx-layer.on .cx-info { opacity: 1; visibility: visible; transition: opacity ' + CFG.fade + 's ease, visibility 0s; }',
+    /* while a project is open (computers and phones): the rest of the index fades out, the title turns yellow */
+    '.cx-index * { transition: color ' + CFG.fade + 's ease, text-decoration-color ' + CFG.fade + 's ease; }',
+    'body.cx-dim .cx-index *, body.bio-open .cx-index * { color: transparent !important; text-decoration-color: transparent !important; }',
+    'body.cx-dim .cx-index .cx-title.open, body.cx-dim .cx-index .cx-title.open * { color: #000 !important; text-decoration-color: currentColor !important; }',
+    'body.cx-dim .cx-index .cx-title.open .cx-text { background-color: #ffff00 !important; }',
+    /* phones and tablets: the tap-to-open panel */
+    'body.mobile .cx-index { --cx-gutter: ' + CFG.mobileGutter + 'rem; font-size: calc(1em * ' + CFG.mobileTextScale + '); }',
+    /* phones: the year column shrinks to the width of the year (so the year sits under your name)
+       and the three columns share the rest; long words wrap instead of running off the screen */
+    'body.mobile .cx-row { grid-template-columns: max-content repeat(3, minmax(0, 1fr)); }',
+    'body.mobile .cx-year { text-align: left; }',
+    'body.mobile .cx-cell { overflow-wrap: anywhere; hyphens: auto; }',
+    'body.mobile .cx-index { max-width: 100%; overflow-x: hidden; }',
+    'body.mobile .cx-title { cursor: pointer; }',
+    '.cx-info.cx-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }',
+    '@media (hover: none) { .cx-title { cursor: pointer; -webkit-tap-highlight-color: transparent; } }',
+    '.cx-title.cx-empty { cursor: default !important; }',
+    '.archive-page, .project .show { display: none !important; }',
+    '.cx-state { opacity: 0.5; font-size: 0.85em; }',
+    'body:not(.mobile) .cx-title:not(.cx-empty) { cursor: pointer; }',
+    '.cx-layer.pinned .cx-info { pointer-events: auto; }',
+    '.mpanel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2147483000; background: #fff; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;',
+    '  box-sizing: border-box; opacity: 0; transition: opacity .25s ease; }',
+    '.mpanel.on { opacity: 1; }',
+    '.mpanel-x { position: fixed; z-index: 2; right: 3vw; width: 9vw; height: 9vw; text-align: center; line-height: 9vw; font-size: 6vw; font-weight: 300; cursor: pointer; color: inherit; }',
+    '.mpanel-title { font-weight: 700; }',
+    '.mpanel-title span { background: #ffff00; -webkit-box-decoration-break: clone; box-decoration-break: clone; }',
+    '.mpanel-text { font-weight: 400; margin-top: 1.4em; }',
+    '.mpanel-photos { display: flex; align-items: flex-start; }',
+    '.mpanel-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }',
+    '.mpanel-col img, .mpanel-col video { display: block; height: auto; max-width: none; }'
+  ].join('\n');
+  var style = document.getElementById('collage-css') || document.createElement('style');
+  style.id = 'collage-css'; style.textContent = css;
+  (document.head || document.documentElement).appendChild(style);
+
+  /* ================= HELPERS ================= */
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function rem() { return parseFloat(getComputedStyle(document.documentElement).fontSize) || 16; }
+  function ratio(img) {
+    if (img.videoWidth && img.videoHeight) return img.videoWidth / img.videoHeight;
+    return img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1.5;
+  }
+  /* a short clip (.mp4, .webm, .mov) in a project block plays muted on a loop, like a moving photo */
+  function isVideo(src) { return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(String(src || '')); }
+  function rectOf(el) { var r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }
+  function between(range) { return range[0] + Math.random() * (range[1] - range[0]); }
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  /* wait for the photos, but never longer than WAIT ms: photos still loading are placed with a guessed
+     shape and snap to their real shape (only ever smaller, so nothing new overlaps) when they arrive */
+  var WAIT = 250;
+  function soonLoaded(imgs) { return Promise.race([whenLoaded(imgs), new Promise(function (r) { setTimeout(r, WAIT); })]); }
+  function isLoaded(i) { return i.tagName === 'VIDEO' ? i.readyState >= 1 : (i.complete && i.naturalWidth > 0); }
+  function whenLoaded(imgs) {
+    return Promise.all(imgs.map(function (i) {
+      if (i.tagName === 'VIDEO') return i.readyState >= 1 ? 0 : new Promise(function (res) {
+        i.addEventListener('loadedmetadata', res, { once: true });
+        i.addEventListener('error', res, { once: true });
+        setTimeout(res, 4000);
+      });
+      return i.complete ? 0 : new Promise(function (res) {
+        i.addEventListener('load', res, { once: true });
+        i.addEventListener('error', res, { once: true });
+      });
+    }));
+  }
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+  /* the font of your page text, copied onto the things the script draws outside the page text */
+  function faint(c) { if (!c || c === 'transparent') return true; var m = /rgba\([^)]*,\s*([\d.]+)\)/.exec(c); return !!m && parseFloat(m[1]) < 0.3; }
+  function copyFont(target) {
+    var bc = document.querySelector('bodycopy') || document.body, cs = getComputedStyle(bc);
+    ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight', 'letterSpacing', 'fontVariationSettings']
+      .forEach(function (k) { target.style[k] = cs[k]; });
+    /* the color only when it is solid: while Cargo is still loading on a phone it can be see-through, which left the index blank */
+    if (!faint(cs.color)) target.style.color = cs.color;
+  }
+  function put(e, b) {
+    e.style.left = b.x + 'px'; e.style.top = b.y + 'px';
+    if (b.w != null) { e.style.width = b.w + 'px'; e.style.height = b.h + 'px'; }
+  }
+
+  /* ================= READ THE PROJECT BLOCKS ================= */
+  function columnIndex(v) {
+    v = String(v || '').trim().toLowerCase();
+    for (var i = 0; i < COLUMNS.length; i++) {
+      if (v === String(i + 1) || v === COLUMNS[i].numeral.toLowerCase() || v === COLUMNS[i].name.toLowerCase()) return i;
+    }
+    return -1;
+  }
+  function photoSrc(node) {
+    if (node.tagName === 'IMG') return node.getAttribute('src') || '';
+    if (node.tagName === 'VIDEO') { var so = node.querySelector('source'); return node.getAttribute('src') || (so && so.getAttribute('src')) || ''; }
+    var inner = node.querySelector && node.querySelector('img, video, source');
+    return (inner && inner.getAttribute('src')) || node.getAttribute('src') || '';
+  }
+  /* real text, not blank or leftover "Lorem ipsum" sample text */
+  function hasText(html) {
+    var t = String(html || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    return !!t && !/^lorem ipsum/i.test(t);
+  }
+  /* ARCHIVE: a block with the line <div class="show">off</div> (or data-show="off") is left off
+     the homepage. Blocks on the hidden Archive page (the page holding <div class="archive-page"></div>)
+     are archive-only until their line says on: then they also show on the homepage, in their year
+     and column. */
+  function isOff(p) {
+    var line = p.querySelector('.show'), v = p.getAttribute('data-show') || (line ? line.textContent : '') || 'on';
+    return String(v).replace(/\s+/g, '').toLowerCase() === 'off';
+  }
+  var archived = [], archiveTried = false;
+  function loadArchive() {
+    if (archiveTried || !window.fetch || !window.DOMParser) return;
+    archiveTried = true;
+    fetch(CFG.archivePath, { credentials: 'include' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
+      if (!html) return;
+      var d = new DOMParser().parseFromString(html, 'text/html');
+      if (!d.querySelector('.archive-page')) return;
+      archived = readProjects(d).filter(function (o) { return !o.off; });
+      archived.forEach(function (o) { o.order += 100000; });
+      if (window.console) console.log('[index] archive page: ' + archived.length + ' project(s) switched on');
+      lastSig = ''; refresh();
+    }).catch(function () {});
+  }
+  function readProjects(root) {
+    return [].slice.call(root.querySelectorAll('.project')).map(function (p, order) {
+      var title = p.querySelector('.title'), venue = p.querySelector('.venue'), text = p.querySelector('.text');
+      var photos = [].slice.call(p.querySelectorAll('img, video, media-item')).filter(function (n) {
+        return !((n.tagName === 'IMG' || n.tagName === 'VIDEO') && n.closest('media-item'));   // an img or clip inside a media-item counts once
+      }).map(photoSrc).filter(Boolean);
+      return {
+        year: (p.getAttribute('data-year') || '').trim(),
+        col: columnIndex(p.getAttribute('data-column')),
+        title: title ? title.innerHTML.trim() : '',
+        venue: venue ? venue.innerHTML.trim() : '',
+        text: text ? text.innerHTML.trim() : '',
+        photos: photos,
+        order: order,
+        off: isOff(p),
+        empty: !photos.length && !hasText(text ? text.innerHTML : '')
+      };
+    }).filter(function (o) {
+      if (o.col < 0 || !o.year) { if (window.console) console.warn('[index] a project block is missing its year or column:', o.title); return false; }
+      return true;
+    });
+  }
+
+  /* ================= BUILD THE INDEX (the year rows) ================= */
+  function buildIndex(projects) {
+    var idx = el('div', 'cx-index');
+    var head = el('div', 'cx-row cx-headrow');
+    head.appendChild(el('div', 'cx-cell'));
+    COLUMNS.forEach(function (c) { head.appendChild(el('div', 'cx-cell cx-head', c.numeral + '<br><u>' + c.name + '</u>')); });
+    idx.appendChild(head);
+
+    var years = {};
+    projects.forEach(function (p) { (years[p.year] = years[p.year] || []).push(p); });
+    Object.keys(years).sort(function (a, b) { return parseFloat(b) - parseFloat(a) || (a < b ? 1 : -1); }).forEach(function (y) {
+      var row = el('div', 'cx-row'), cells = [el('div', 'cx-cell cx-year', y)];
+      COLUMNS.forEach(function () { cells.push(el('div', 'cx-cell')); });
+      years[y].forEach(function (p) {
+        var label = p.archiveView ? '<br><span class="cx-state">' + (p.off ? 'Off' : 'On the homepage') + '</span>' : '';
+        var t = el('div', 'cx-title'), s = el('span', 'cx-text', '<b>' + p.title + '</b>' + (p.venue ? '<br>' + p.venue : '') + label);
+        t.appendChild(s);
+        if (p.empty) t.className += ' cx-empty';   // nothing to show yet: plain title, no hover, no click
+        else t._project = p;
+        var wrap = el('div', 'cx-entry'); wrap.appendChild(t);
+        cells[p.col + 1].appendChild(wrap);
+      });
+      cells.forEach(function (c) { row.appendChild(c); });
+      idx.appendChild(row);
+    });
+    return idx;
+  }
+
+  var indexEl = null, layer = null, lastSig = '';
+  function refresh() {
+    var holder = null, blocks = document.querySelectorAll('.project');
+    for (var i = 0; i < blocks.length; i++) { holder = blocks[i].closest('bodycopy') || blocks[i].parentNode; break; }
+    if (!holder) { if (indexEl && indexEl.parentNode) indexEl.parentNode.removeChild(indexEl); indexEl = null; lastSig = ''; return; }
+    var sig = holder.innerHTML.length + ':' + blocks.length;
+    if (sig === lastSig && indexEl && document.documentElement.contains(indexEl)) return;
+    lastSig = sig;
+    var list = readProjects(holder), isArchive = !!document.querySelector('.archive-page');
+    if (isArchive) list.forEach(function (o) { o.archiveView = true; });       // the archive page shows everything on it, marked on or off
+    else { list = list.filter(function (o) { return !o.off; }).concat(archived); loadArchive(); }
+    var fresh = buildIndex(list);
+    copyFont(fresh);
+    if (indexEl && indexEl.parentNode) indexEl.parentNode.replaceChild(fresh, indexEl);
+    else holder.parentNode.insertBefore(fresh, holder.nextSibling);     // OUTSIDE your page text, right after it
+    indexEl = fresh;
+    if (!layer || !document.documentElement.contains(layer)) { layer = el('div', 'cx-layer'); document.body.appendChild(layer); }
+  }
+  /* Cargo draws pages after the script starts and when you move between pages, so watch for that */
+  var pending = null;
+  function soon() { if (!pending) pending = setTimeout(function () { pending = null; refresh(); }, 60); }
+  new MutationObserver(function (list) {
+    for (var i = 0; i < list.length; i++) {
+      var n = list[i].target;
+      if ((indexEl && indexEl.contains(n)) || (layer && layer.contains(n)) || (n.closest && n.closest('.mpanel, .cx-index, .cx-layer'))) continue;
+      soon(); return;
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh); else refresh();
+  window.addEventListener('resize', function () { if (indexEl) copyFont(indexEl); });
+
+  /* ================= PHOTOS ================= */
+  var cache = {};
+  function makeImg(src) {
+    if (isVideo(src)) {
+      var v = document.createElement('video');
+      v.muted = true; v.defaultMuted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
+      v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.preload = 'auto'; v.src = src;
+      return v;
+    }
+    var im = new Image(); im.decoding = 'async'; im.src = src; return im;
+  }
+  /* the first photo, plus a random mix of the rest, kept in their order */
+  function pickSome(list, max) {
+    if (!max || list.length <= max) return list.slice();
+    var rest = list.slice(1).map(function (u, i) { return { u: u, i: i, r: Math.random() }; });
+    rest.sort(function (a, b) { return a.r - b.r; });
+    rest = rest.slice(0, max - 1).sort(function (a, b) { return a.i - b.i; });
+    return [list[0]].concat(rest.map(function (o) { return o.u; }));
+  }
+  function photosFor(p, max) {
+    var list = p.photos.length ? p.photos : [];
+    if (!list.length && SAMPLE_PHOTOS.length) for (var i = 0; i < SAMPLE_COUNT; i++) list.push(SAMPLE_PHOTOS[i % SAMPLE_PHOTOS.length]);
+    return pickSome(list, max).map(function (src) { return makeImg(src); });
+  }
+  function preload(p) {
+    if (cache[p.order]) return;
+    cache[p.order] = true;
+    (p.photos.length ? p.photos : SAMPLE_PHOTOS).forEach(function (u) { if (!isVideo(u)) makeImg(u); });
+  }
+
+  /* ================= PACKING (no overlaps, buffer between photos; sizes follow the number of photos) ================= */
+  function overlaps(a, b, g) {
+    return !(a.x + a.w + g <= b.x || b.x + b.w + g <= a.x || a.y + a.h + g <= b.y || b.y + b.h + g <= a.y);
+  }
+  function packOnce(items, base, area, rnd, fill) {
+    var W = window.innerWidth, H = window.innerHeight, g = CFG.gap * rem();
+    var placed = base.slice(), misses = 0;
+    var AW = area.x1 - area.x0, AH = area.y1 - area.y0;
+    var per = fill * AW * AH / Math.max(1, items.length - 1 + CFG.leadWeight);   // area for one ordinary photo
+    var sized = items.map(function (it) {
+      var a = per * (it.lead ? CFG.leadWeight : lerp(0.6, 1.4, rnd()));
+      var w = Math.sqrt(a * it.ar), h = w / it.ar;
+      var mw = area.maxW || CFG.maxW;
+      if (w > mw * AW) { w = mw * AW; h = w / it.ar; }
+      if (h > CFG.maxH * AH) { h = CFG.maxH * AH; w = h * it.ar; }
+      return { it: it, w: w, h: h, minw: w * 0.6, minh: h * 0.6 };
+    });
+    sized.sort(function (a, b) { return b.w * b.h - a.w * a.h; });
+    function tryPlace(w, h) {
+      if (w > area.x1 - area.x0 || h > area.y1 - area.y0) return null;
+      var xs = [area.x0], ys = [area.y0];
+      placed.forEach(function (p) { xs.push(p.x + p.w + g, p.x - g - w); ys.push(p.y + p.h + g, p.y - g - h); });
+      var found = [];
+      xs.forEach(function (x) {
+        if (x < area.x0 || x + w > area.x1) return;
+        ys.forEach(function (y) {
+          if (y < area.y0 || y + h > area.y1) return;
+          var b = { x: x, y: y, w: w, h: h };
+          if (!placed.some(function (p) { return overlaps(b, p, g); })) found.push(b);
+        });
+      });
+      if (!found.length) return null;
+      return found[Math.floor(rnd() * found.length)];
+    }
+    function jitter(box, others) {
+      for (var n = 0; n < 40; n++) {
+        var b = { x: box.x + (rnd() - 0.5) * 0.12 * W, y: box.y + (rnd() - 0.5) * 0.2 * H, w: box.w, h: box.h };
+        if (b.x < area.x0 || b.y < area.y0 || b.x + b.w > area.x1 || b.y + b.h > area.y1) continue;
+        if (others.some(function (p) { return overlaps(b, p, g); })) continue;
+        box.x = b.x; box.y = b.y;
+      }
+    }
+    var out = sized.map(function (s) {
+      var box = null;
+      for (var k = 0; k <= 8 && !box; k++) { var t = 1 - k / 8; box = tryPlace(lerp(s.minw, s.w, t), lerp(s.minh, s.h, t)); }
+      if (!box) { misses++; return null; }
+      placed.push(box);
+      return { el: s.it.el, box: box };
+    }).filter(Boolean);
+    out.forEach(function (r) { jitter(r.box, placed.filter(function (p) { return p !== r.box; })); });
+    return { out: out, misses: misses };
+  }
+  function pack(items, base, area, rnd) {
+    var best = null, fill = CFG.fill;
+    for (var round = 0; round < 6; round++) {      // if the photos do not all fit, make them all a bit smaller and try again
+      for (var n = 0; n < 20; n++) {
+        var r = packOnce(items, base, area, rnd, fill);
+        if (!best || r.misses < best.misses) best = r;
+        if (!r.misses) return r;
+      }
+      fill *= 0.85;
+    }
+    return best;
+  }
+
+  /* ================= HOME PAGE: roll over a title ================= */
+  function clearLayer() { if (layer) { layer.classList.remove('on'); layer.innerHTML = ''; } }
+  function show(t, p, imgs) {
+    var W = window.innerWidth, H = window.innerHeight, r = rem(), g = CFG.gap * r;
+    clearLayer();
+    var title = t.querySelector('.cx-text') || t, titleBox = rectOf(title), blocks = [titleBox], x0 = CFG.margin * r;
+    if (p.text && touchMode()) {
+      /* PHONES: a narrower text box right under the title you tapped (or above it, if there is more room there) */
+      var info = el('div', 'cx-info', p.text); copyFont(info); info.style.fontWeight = '400';
+      var ts = getComputedStyle(title), m = CFG.margin * r, tw = Math.min(CFG.mobileTextWidth / 100 * W, W - 2 * m), sp = 0.5 * r;
+      info.style.fontSize = ts.fontSize; info.style.lineHeight = ts.lineHeight; info.style.width = tw + 'px';
+      layer.appendChild(info);
+      var ih = info.getBoundingClientRect().height, roomBelow = H - m - (titleBox.y + titleBox.h + sp), roomAbove = titleBox.y - sp - CFG.mobileTop * r, y;
+      if (ih <= roomBelow || roomBelow >= roomAbove) {
+        y = titleBox.y + titleBox.h + sp;
+        if (ih > roomBelow) { info.style.maxHeight = Math.max(roomBelow, 3 * r) + 'px'; info.classList.add('cx-scroll'); }
+      } else {
+        if (ih > roomAbove) { info.style.maxHeight = roomAbove + 'px'; info.classList.add('cx-scroll'); ih = roomAbove; }
+        y = titleBox.y - sp - ih;
+      }
+      put(info, { x: Math.max(m, Math.min(titleBox.x, W - m - tw)), y: y });
+      blocks.push(rectOf(info));
+    } else if (p.text) {
+      var info = el('div', 'cx-info', p.text); copyFont(info); info.style.fontWeight = '400';
+      layer.appendChild(info);
+      var top = CFG.alignText ? titleBox.y : CFG.textTop * r;
+      top = Math.max(CFG.top * r, Math.min(top, H - CFG.margin * r - info.getBoundingClientRect().height));
+      put(info, { x: CFG.edge * r, y: top });
+      var ib = rectOf(info); blocks.push(ib);
+      x0 = Math.max(x0, ib.x + ib.w + CFG.textGap * r);
+    } else if (!touchMode()) {
+      x0 = Math.max(x0, CFG.edge * r + CFG.textWidth * r + g);
+    }
+    var area = { x0: x0, y0: CFG.top * r, x1: W - CFG.margin * r, y1: H - CFG.margin * r, blocks: blocks };
+    if (touchMode()) area = { x0: CFG.margin * r, y0: CFG.mobileTop * r, x1: W - CFG.margin * r, y1: H - CFG.margin * r, blocks: blocks, maxW: CFG.mobileMaxW };
+    var items = imgs.map(function (im, i) { im.className = 'cx-photo'; return { el: im, ar: ratio(im), lead: i === 0 }; });
+    var res = pack(items, blocks, area, mulberry32(Math.floor(Math.random() * 4294967296)));
+    res.out.forEach(function (o) {
+      if (!isLoaded(o.el)) o.el.addEventListener(o.el.tagName === 'VIDEO' ? 'loadedmetadata' : 'load', function () {
+        var b = o.box, ar = ratio(o.el), w = b.w, h = b.h;
+        if (ar > w / h) h = w / ar; else w = h * ar;
+        put(o.el, { x: b.x, y: b.y, w: w, h: h });
+      }, { once: true });
+    });
+    res.out.forEach(function (o) { put(o.el, o.box); layer.appendChild(o.el); if (o.el.play) { var pr = o.el.play(); if (pr && pr.catch) pr.catch(function () {}); } });
+    void layer.offsetWidth;                     // so the fade-in runs
+    layer.classList.add('on');
+    if (window.console) console.log('[collage] ' + imgs.length + ' photos placed, ' + res.misses + ' could not fit cleanly');
+  }
+
+  /* ================= HOME PAGE: roll over your name ================= */
+  var bioOpen = false, bioPinned = false, bioTimer = null, nameEl = null;
+  function inBio(n) { return !!(n && n.closest && n.closest('.cx-bio')); }
+  function nameTarget(e) {
+    var n = e.target, hops = 0;
+    if (nameEl && document.documentElement.contains(nameEl) && nameEl.contains(n)) n = nameEl;
+    while (n && n !== document.body && hops++ < 4) {
+      if (n.nodeType === 1 && n.childElementCount < 4 && (n.textContent || '').trim() === CFG.nameText) {
+        var box = ((n.querySelector && n.querySelector('a')) || n).getBoundingClientRect();
+        if (e.clientX >= box.left - 4 && e.clientX <= box.right + 4 && e.clientY >= box.top - 4 && e.clientY <= box.bottom + 4) { nameEl = n; return n; }
+        return null;
+      }
+      n = n.parentNode;
+    }
+    return null;
+  }
+  function bioHTML() { var b = document.querySelector('.bio-info'); return b ? b.innerHTML : ''; }
+  function openBio() {
+    var html = bioHTML(); if (!html || !layer) return;
+    clearLayer();
+    var info = el('div', 'cx-info cx-bio', html); copyFont(info); info.style.fontWeight = '400';
+    layer.appendChild(info);
+    var r = rem(), H = window.innerHeight;
+    put(info, { x: CFG.edge * r, y: Math.max(CFG.top * r, Math.min(CFG.textTop * r, H - CFG.margin * r - info.getBoundingClientRect().height)) });
+    void layer.offsetWidth; layer.classList.add('on');
+    document.body.classList.add('bio-open'); bioOpen = true;
+  }
+  function closeBio() { clearTimeout(bioTimer); bioTimer = null; document.body.classList.remove('bio-open'); bioOpen = false; bioPinned = false; clearLayer(); }
+  /* Leaving the name gives you a moment to move onto the bio (so its CV link can be clicked).
+     Clicking your name keeps the bio open until you click somewhere else or press Esc. */
+  function closeBioSoon() { clearTimeout(bioTimer); if (!bioPinned) bioTimer = setTimeout(function () { bioTimer = null; if (!bioPinned) closeBio(); }, 450); }
+  document.addEventListener('click', function (e) {
+    if (touchMode()) return;
+    if (nameTarget(e)) { e.preventDefault(); if (!bioOpen) openBio(); bioPinned = true; clearTimeout(bioTimer); bioTimer = null; return; }
+    if (bioOpen && !inBio(e.target)) closeBio();
+  });
+  document.addEventListener('keydown', function (e) { if (bioOpen && (e.key === 'Escape' || e.key === 'Esc')) closeBio(); });
+
+  /* ================= PHONES AND TABLETS: tap to open a full-screen panel ================= */
+  function touchMode() {
+    return document.body.classList.contains('mobile') || !!(window.matchMedia && window.matchMedia('(hover: none)').matches);
+  }
+  function buildPhotos(imgs) {
+    var wrap = el('div', 'mpanel-photos'), cols = [el('div', 'mpanel-col'), el('div', 'mpanel-col')];
+    wrap.style.marginTop = (CFG.mPadding * 1.6) + 'vw';
+    wrap.style.gap = CFG.mColGap + 'vw';
+    cols.forEach(function (c) { wrap.appendChild(c); });
+    var colW = (100 - 2 * CFG.mPadding - CFG.mColGap) / 2, stagger = between(CFG.mStagger), heights = [0, stagger];
+    cols[1].style.marginTop = stagger + 'vw';
+    imgs.forEach(function (src, i) {
+      var ar = ratio(src), pct = i === 0 ? 100 : between(ar >= 1 ? CFG.mWidthLandscape : CFG.mWidthPortrait);
+      var gap = between(CFG.mPhotoGap), k = heights[0] <= heights[1] ? 0 : 1;
+      var im = makeImg(src.currentSrc || src.src);
+      im.style.width = pct + '%';
+      im.style.marginLeft = ((100 - pct) * Math.random()) + '%';
+      if (cols[k].childNodes.length) im.style.marginTop = gap + 'vw';
+      cols[k].appendChild(im);
+      heights[k] += (pct / 100 * colW) / ar + gap;
+    });
+    return wrap;
+  }
+  var panelEl = null;
+  function closePanel() {
+    var p = panelEl; if (!p) return;
+    panelEl = null; p.classList.remove('on');
+    setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, 300);
+  }
+  function openPanel(o) {
+    if (panelEl) return;
+    var p = el('div', 'mpanel'), pad = CFG.mPadding + 'vw';
+    p.setAttribute('role', 'dialog');
+    copyFont(p);
+    p.style.padding = 'calc(env(safe-area-inset-top, 0px) + 14vw) ' + pad + ' 14vw';
+    var x = el('div', 'mpanel-x'); x.textContent = '×'; x.setAttribute('aria-label', 'Close');
+    x.style.top = 'calc(env(safe-area-inset-top, 0px) + 2vw)';
+    p.appendChild(x);
+    if (o.title) { var t = el('div', 'mpanel-title'); t.style.paddingRight = '10vw'; t.appendChild(el('span', '', o.title)); p.appendChild(t); }
+    if (o.text) p.appendChild(el('div', 'mpanel-text', o.text));
+    if (o.photos && o.photos.length) p.appendChild(buildPhotos(o.photos));
+    p._t = Date.now();
+    p.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('a')) return;   // tapping a link (like the CV) opens it instead of closing the panel
+      if (Date.now() - p._t > 300) closePanel();
+    });
+    document.body.appendChild(p);
+    panelEl = p;
+    requestAnimationFrame(function () { p.classList.add('on'); });
+  }
+  document.addEventListener('click', function (e) {
+    if (!touchMode() || panelEl) return;
+    if (nameTarget(e)) {
+      var html = bioHTML();
+      if (html) { e.preventDefault(); openPanel({ title: CFG.nameText, text: html }); }
+      return;
+    }
+  }, true);
+
+  /* ================= HOME PAGE (mouse): events ================= */
+  /* Clicking a title pins its collage open (the page stays where it is); clicking it again,
+     clicking anywhere else, or pressing Esc unpins it. Links in a pinned text can be clicked. */
+  var current = null, pinned = false, openTop = 0;
+  function closeCurrent() {
+    if (current) { current.classList.remove('open'); current = null; }
+    pinned = false; if (layer) layer.classList.remove('pinned');
+    document.body.classList.remove('cx-dim'); clearLayer();
+  }
+  function openTitle(t) {
+    closeCurrent();
+    current = t; t.classList.add('open'); document.body.classList.add('cx-dim');
+    var touch = touchMode(), p = t._project, imgs = photosFor(p, touch ? CFG.mobileMaxPhotos : CFG.maxPhotos);
+    if (!touch) preload(p);
+    openTop = t.getBoundingClientRect().top;
+    soonLoaded(imgs).then(function () { if (current === t) show(t, p, imgs); });
+  }
+  document.addEventListener('click', function (e) {
+    if (panelEl) return;
+    if (nameTarget(e)) { if (pinned) closeCurrent(); return; }
+    if (inBio(e.target)) return;
+    var t = e.target.closest && e.target.closest('.cx-title');
+    if (pinned && layer && layer.contains(e.target) && e.target.closest('a')) return;   // a link inside the pinned text
+    if (t && t._project) {
+      e.preventDefault(); e.stopPropagation();
+      if (pinned && t === current) { closeCurrent(); return; }
+      if (bioOpen) closeBio();
+      if (t !== current) openTitle(t);
+      pinned = true; if (layer) layer.classList.add('pinned');
+      return;
+    }
+    if (pinned && !(layer && layer.contains(e.target) && e.target.closest('.cx-info'))) closeCurrent();
+  }, true);
+  document.addEventListener('keydown', function (e) { if (pinned && (e.key === 'Escape' || e.key === 'Esc')) closeCurrent(); });
+  document.addEventListener('scroll', function () {
+    if (current && touchMode() && Math.abs(current.getBoundingClientRect().top - openTop) > 40) closeCurrent();
+  }, { capture: true, passive: true });
+  document.addEventListener('mouseover', function (e) {
+    if (touchMode() || pinned) return;   // a pinned collage stays until it is clicked off
+    if (nameTarget(e)) { clearTimeout(bioTimer); bioTimer = null; if (current) closeCurrent(); if (!bioOpen) openBio(); return; }
+    if (bioOpen && inBio(e.target)) { clearTimeout(bioTimer); bioTimer = null; return; }
+    if (bioOpen && (bioPinned || bioTimer)) return;   // pinned, or on the way from your name to the bio
+    if (bioOpen) closeBio();
+    var t = e.target.closest && e.target.closest('.cx-title');
+    if (!t || t === current || !t._project) return;
+    openTitle(t);
+  });
+  document.addEventListener('mouseout', function (e) {
+    if (bioOpen && !(nameEl && e.relatedTarget && nameEl.contains(e.relatedTarget)) && !inBio(e.relatedTarget)) closeBioSoon();
+    if (current && !pinned && !(e.relatedTarget && current.contains(e.relatedTarget))) closeCurrent();
+  });
+
+  SAMPLE_PHOTOS.forEach(function (u) { makeImg(u); });
+
+  /* ON COMPUTERS: after the page has loaded, quietly load the first 3 photos of every project, two at a time,
+     so rolling over a title shows its photos at once. Phones and data-saver mode skip this. */
+  function warmUp() {
+    if (touchMode() || (navigator.connection && navigator.connection.saveData)) return;
+    var queue = [];
+    [].slice.call(document.querySelectorAll('.cx-title')).forEach(function (t) {
+      if (t._project) t._project.photos.slice(0, 3).forEach(function (u) { if (!isVideo(u) && queue.indexOf(u) < 0) queue.push(u); });
+    });
+    function next() { var u = queue.shift(); if (!u) return; var im = new Image(); im.onload = im.onerror = function () { setTimeout(next, 0); }; im.src = u; }
+    next(); next();
+  }
+  window.addEventListener('load', function () { setTimeout(warmUp, 1500); });
+  if (document.readyState === 'complete') setTimeout(warmUp, 1500);
+})();
+;
+__cxStyle("/* LAYOUT: the index fills the page width (otherwise Cargo squeezes it to the right, beside the hidden project blocks) */\n.cx-index { flex: 0 0 100%; grid-column: 1 / -1; min-width: 0; max-width: 100%; }\nbodycopy:has(.project) { flex: 0 1 0%; min-width: 0; }");
+;/* PROJECT LINKS (add-on to the homepage script)
+   - Each project block names its own address: data-page="Hello-Pizza".
+   - A small Cargo page with that name, holding only <div class="goto"></div>, keeps old links working:
+     opening it shows the homepage with that project open, exactly like clicking its title.
+     Visitors never see that page itself.
+   - While a project is open, the address bar shows its address (so it can be copied and shared);
+     closing it (Esc or click off) puts the homepage address back. Nothing reloads or scrolls,
+     so closing returns to exactly where the visitor was. */
+(function () {
+  'use strict';
+  function slugOf(t) {
+    var p = t && t._project; if (!p || p.archiveView) return '';
+    var blocks = document.querySelectorAll('.project'), b = blocks[p.order];
+    return b ? (b.getAttribute('data-page') || '').trim() : '';
+  }
+  function findTitle(slug) {
+    var ts = document.querySelectorAll('.cx-title');
+    for (var i = 0; i < ts.length; i++) if (slugOf(ts[i]).toLowerCase() === slug.toLowerCase()) return ts[i];
+    return null;
+  }
+  /* 1. A project's own address: go to the homepage with that project open.
+     OLD ADDRESSES: each one has an empty Cargo page with the same name, so old links still work.
+     (A page holding <div class="goto"></div> does the same, for any new address you add.) */
+  var OLD_PAGES = ('Computer-Applications,Rewilding-Detroit,Climate-Crisis-Hotline,Building-Stor-i-es,Limits-of-Closure,Theater-of-the-Everyday-Design-Studio,Design-Tools-Skills,Space-Saloon-Fieldworks,Nang-Loeng-Park,Truth-at-Cooper,Offramp-Stuff,Endemichomes-Design-Studio,Food-Industries-Design-Studio,Hero-s-Journey-Design-Studio,WUHO-Workshop,Space-Saloon-Landing,Offramp-Crowds,Mass-and-Interiority-Design-Studio,Radical-Jozi-Design-Studio,Joburg-Action-Lab,Port-of-Havana-Design-Studio,Occupy-Edit-Grow-Design-Studio,Lisbon-Triennale,Letters-to-the-Mayor,Hello-Pizza,Teaching-the-City,Si-No,Migrant-Hous-ing,The-Semiotic-Landmark,Empower-Design-Studio,Fabrica-de-Cultura-Design-Studio,Empower-Shack,The-Public-Spectacle,8-Easy-Step-to-Grow-Your-Own-Nation,Xarranca-Pavilion,Storefront-Measure,Lessons-From-Modernism,Lessons-from-the-Green-Revolution,Measuring-the-Landscape,Nunez-Galvez-Tomb,Cultivating-the-Map,Energy-Fab-Lab,Skull-Rock-Instagrammetry,Space-Saloon-Satellite-Lab,Revisiting-Film-Sets,Digital-Landscapes,Migrant-House,4000-Kilometers,Espana,Architecture-at-Cooper,Chelsea-Kunsthalle,Descriptive-Geometry,Housing-Scales,Kern-Oil,Mike-Tyson-s-Abandoned-Mansion,Paul-Rudolph-Lower-Manhattan-Expressway,Santa-Maria-in-Campitelli,Terra-Techtonics').toLowerCase().split(',');
+  var tries = 0;
+  (function goto() {
+    var s = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
+    if (s && (OLD_PAGES.indexOf(s.toLowerCase()) >= 0 || document.querySelector('.goto'))) { location.replace('/?open=' + encodeURIComponent(s)); return; }
+    if (++tries < 40 && !document.querySelector('.cx-title')) setTimeout(goto, 150);
+  })();
+  /* 2. The homepage opened with ?open=Project-Name: open that project */
+  var m = /[?&]open=([^&#]*)/.exec(location.search), wanted = m ? decodeURIComponent(m[1]) : '', wTries = 0;
+  (function open() {
+    if (!wanted) return;
+    var t = findTitle(wanted);
+    if (t) {
+      t.scrollIntoView({ block: 'center' });
+      setTimeout(function () { t.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); }, 300);
+      return;
+    }
+    if (++wTries < 60) setTimeout(open, 200);
+  })();
+  /* 3. Keep the address bar in step with the open project (no reload, no scroll) */
+  var shown = '';
+  setInterval(function () {
+    var layer = document.querySelector('.cx-layer'), cur = document.querySelector('.cx-title.open');
+    var s = layer && layer.classList.contains('pinned') && cur ? slugOf(cur) : '';
+    if (s === shown) return;
+    var here = location.pathname.replace(/\/+$/, '').toLowerCase();
+    if (!s && shown && here !== '/' + shown.toLowerCase()) { shown = ''; return; }   // the visitor went to another page: leave the address alone
+    shown = s;
+    try { history.replaceState(history.state, '', s ? '/' + s : '/'); } catch (e) {}
+  }, 250);
+})[window.self === window.top ? 'call' : 'bind']();   // runs on the real site only, never inside the Cargo editor
+;
+;/* TEXT COLOR FIX: the index copies your text color when it is drawn. If Cargo is still loading
+   your fonts at that moment, the color it copies is see-through, so the titles stay invisible.
+   This checks again once the fonts and page have loaded and puts the real color back. */
+(function () {
+  'use strict';
+  function seeThrough(c) { if (!c || c === 'transparent') return true; var m = /rgba\([^)]*,\s*([\d.]+)\)/.exec(c); return !!m && parseFloat(m[1]) < 0.3; }
+  function fix() {
+    var bc = document.querySelector('bodycopy') || document.body, c = getComputedStyle(bc).color;
+    [].forEach.call(document.querySelectorAll('.cx-index'), function (i) {
+      if (seeThrough(i.style.color)) i.style.color = seeThrough(c) ? '' : c;
+    });
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fix);
+  window.addEventListener('load', fix);
+  setTimeout(fix, 100); setTimeout(fix, 300); setInterval(fix, 500);   // and keep checking, in case Cargo redraws the page
+})();
+;
+__cxStyle(".activity { display: none !important; }\n.cx-acts { font-weight: normal; font-size: 0.72em; line-height: 1.3; margin-top: 0.5em; text-align: right; }\n.cx-acts div { margin-bottom: 0.35em; }\n.cx-acts-m { display: none; }\nbody.mobile .cx-year .cx-acts { display: none; }\nbody.mobile .cx-acts-m { display: block; grid-column: 1 / -1; margin-top: 0.2em; }");
+;(function () {
+  function put() {
+    var idx = document.querySelector('.cx-index');
+    if (!idx || idx.querySelector('.cx-acts')) return;
+    var by = {};
+    [].forEach.call(document.querySelectorAll('.activity'), function (a) {
+      var y = (a.getAttribute('data-year') || '').trim();
+      if (y) (by[y] = by[y] || []).push(a.innerHTML.trim());
+    });
+    Object.keys(by).forEach(function (y) {
+      var row = null, before = null;
+      [].forEach.call(idx.querySelectorAll('.cx-row'), function (r) {
+        var c = r.querySelector('.cx-year'); if (!c || !c.firstChild) return;
+        var ry = c.firstChild.textContent.trim();
+        if (ry === y) row = r; else if (!before && parseFloat(ry) < parseFloat(y)) before = r;
+      });
+      if (!row) {
+        row = document.createElement('div'); row.className = 'cx-row';
+        var yc = document.createElement('div'); yc.className = 'cx-cell cx-year'; yc.textContent = y; row.appendChild(yc);
+        for (var i = 0; i < 3; i++) { var e = document.createElement('div'); e.className = 'cx-cell'; row.appendChild(e); }
+        idx.insertBefore(row, before);
+      }
+      var html = by[y].map(function (t) { return '<div>' + t + '</div>'; }).join('');
+      var d = document.createElement('div'); d.className = 'cx-acts'; d.innerHTML = html; row.querySelector('.cx-year').appendChild(d);
+      var m = document.createElement('div'); m.className = 'cx-acts cx-acts-m'; m.innerHTML = html; row.appendChild(m);
+    });
+  }
+  put(); setInterval(put, 400);   // the index is rebuilt now and then, so keep checking
+})();
+;
+/* PAGE BLOCKS: a Cargo page holding <div data-code="NAME"></div> shows blocks/NAME.html from this repo.
+   - Most blocks draw inside the placeholder's own shadow layer, so Cargo's editor never saves them into the page.
+   - LIGHT blocks (the homepage projects) go into the page itself, because the homepage scripts read them there.
+     They are skipped inside Cargo's editor, so the editor never saves a copy. */
+(function () {
+  'use strict';
+  if (window.__cargoBlocks) return; window.__cargoBlocks = true;
+  var BASE = 'https://darch87.github.io/cargo-code/blocks/';
+  var LIGHT = { homepage: true };
+  var inEditor = window.self !== window.top;
+  var done = typeof WeakSet === 'function' ? new WeakSet() : null, cache = {};
+  function get(name) {
+    if (!cache[name]) cache[name] = fetch(BASE + encodeURIComponent(name) + '.html?v=' + Math.floor(Date.now() / 60000))
+      .then(function (r) { return r.ok ? r.text() : ''; }).catch(function () { return ''; });
+    return cache[name];
+  }
+  function fill() {
+    [].forEach.call(document.querySelectorAll('[data-code]'), function (ph) {
+      if (!done || done.has(ph)) return;
+      var name = (ph.getAttribute('data-code') || '').trim().toLowerCase();
+      if (!name) return;
+      if (LIGHT[name]) {
+        if (inEditor || ph.querySelector('.project')) return;
+        done.add(ph);
+        get(name).then(function (html) { if (html) ph.innerHTML = html; });
+      } else {
+        if (!ph.attachShadow || ph.shadowRoot) return;
+        done.add(ph);
+        var root = ph.attachShadow({ mode: 'open' });
+        get(name).then(function (html) { root.innerHTML = html; });
+      }
+    });
+  }
+  var t = null;
+  new MutationObserver(function () { if (!t) t = setTimeout(function () { t = null; fill(); }, 50); })
+    .observe(document.documentElement, { childList: true, subtree: true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fill); else fill();
+})();
+

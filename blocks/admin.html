@@ -1,0 +1,109 @@
+<!-- lab-admin (Cargo page shows it through <div data-code="admin"></div>; the page keeps its Cargo password).
+     No keys or passcodes go on this page. It only says where each one lives.
+     To add a service: copy one <div class="lx-row"> ... </div> block and edit it. -->
+<style>
+.lx-list{max-width:900px;margin:0 auto;padding:0 16px;color:#1a1a1a;font-family:inherit}
+.lx-intro{font-size:1em;line-height:1.45;color:#444;margin:0 0 20px}
+.lx-row{border-top:1px solid #d9d9d9;padding:16px 0}
+.lx-row:last-child{border-bottom:1px solid #d9d9d9}
+.lx-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 14px}
+.lx-name{font-size:1.35em;margin:0}
+.lx-tag{font-size:.8em;padding:2px 8px;border:1px solid #bbb;border-radius:10px;color:#333}
+.lx-tag.live{background:#e4f3e4;border-color:#9cc79c}
+.lx-tag.wait{background:#fbf0d9;border-color:#e0c27a}
+.lx-what{flex-basis:100%;font-size:1em;line-height:1.45;color:#333;margin:2px 0 0}
+.lx-body{margin-top:12px;font-size:.95em;line-height:1.5}
+.lx-facts{list-style:none;margin:0 0 12px;padding:0}
+.lx-facts li{margin:0 0 6px}
+.lx-k{color:#666}
+.lx-steps{margin:0;padding-left:1.3em;list-style:decimal}
+.lx-steps li{margin:0 0 5px}
+.lx-body a{color:#1a1a1a}
+</style>
+
+<div class="lx-list">
+<p class="lx-intro">Every service the experiments use. Below: each service with its links, what it connects to, where its keys live, and the steps. No keys are kept here.</p>
+
+<div class="lx-row">
+<div class="lx-head"><h2 class="lx-name">Cargo</h2><span class="lx-tag live">live</span>
+<span class="lx-what">The front door: the portfolio, the experiments page and this admin page.</span></div>
+<div class="lx-body">
+<ul class="lx-facts"><li><span class="lx-k">Connects to:</span> Loads its code from the cargo-code repo; links out to each tool on GitHub Pages.</li><li><span class="lx-k">Passwords:</span> Page passwords live in Cargo, per page.</li></ul>
+<ul class="lx-steps">
+<li>Lock a page: Pages menu, right-click the page, Settings, set a password.</li>
+<li>Code blocks: no pasting needed. Each page holds one short line, and Claude updates the code in the cargo-code repo.</li>
+</ul></div></div>
+
+<div class="lx-row">
+<div class="lx-head"><h2 class="lx-name">cargo-code (GitHub)</h2><span class="lx-tag live">live</span>
+<span class="lx-what">The code behind the Cargo site: the homepage collage, the experiments page and this page.</span></div>
+<div class="lx-body">
+<ul class="lx-facts"><li><span class="lx-k">Repo:</span> <a href="https://github.com/darch87/cargo-code" target="_blank">github.com/darch87/cargo-code</a></li><li><span class="lx-k">Cargo lines:</span> Site HTML: one script line loading site.js. Pages: &lt;div data-code="name"&gt;&lt;/div&gt;, which shows blocks/name.html.</li><li><span class="lx-k">Access:</span> The Claude GitHub app must keep access to this repo.</li></ul>
+<ul class="lx-steps">
+<li>Changes show on the site a minute or two after Claude pushes; reload the page.</li>
+<li>If a page goes blank: check that GitHub Pages is still on for cargo-code (Settings, Pages, Branch: main).</li>
+</ul></div></div>
+
+<div class="lx-row">
+<div class="lx-head"><h2 class="lx-name">GitHub Pages</h2><span class="lx-tag live">live</span>
+<span class="lx-what">Hosts the tools themselves, from the darch87 account.</span></div>
+<div class="lx-body">
+<ul class="lx-facts"><li><span class="lx-k">Sites:</span> <a href="https://darch87.github.io/brick-holocron/" target="_blank">brick-holocron</a> (phone: <a href="https://darch87.github.io/brick-holocron/mobile/" target="_blank">/mobile/</a>), <a href="https://darch87.github.io/record-bins/" target="_blank">record-bins</a>, <a href="https://darch87.github.io/arch6171/" target="_blank">arch6171</a></li><li><span class="lx-k">Repos:</span> <a href="https://github.com/darch87" target="_blank">github.com/darch87</a></li><li><span class="lx-k">Passcodes:</span> Each tool has its own admin and guest passcode, set inside that tool.</li></ul>
+<ul class="lx-steps">
+<li>Update a file: open the repo, open the file, pencil icon, paste the new code, Commit changes.</li>
+<li>Upload new files: in the repo, Add file, Upload files, drop them in, Commit changes.</li>
+<li>Wait a minute, then reload the site (a hard refresh if it still looks old).</li>
+<li>Turn Pages on for a new repo: Settings, Pages, Branch: main, Save.</li>
+</ul></div></div>
+
+<div class="lx-row">
+<div class="lx-head"><h2 class="lx-name">Google Sheets + Apps Script</h2><span class="lx-tag live">live</span>
+<span class="lx-what">The LEGO sheet and the vinyl sheet hold the data; their Code.gs scripts feed the tools and fetch prices.</span></div>
+<div class="lx-body">
+<ul class="lx-facts"><li><span class="lx-k">Connects to:</span> Brick Holocron (LEGO sheet), Den of Discs (vinyl sheet), BrickLink, Discogs, eBay.</li><li><span class="lx-k">Keys go in:</span> Each sheet's Apps Script: gear icon (Project Settings), Script properties.</li></ul>
+<ul class="lx-steps">
+<li>Open the sheet, Extensions, Apps Script.</li>
+<li>Click Code.gs, select all, paste the new code, save.</li>
+<li>Deploy, Manage deployments, pencil icon, Version: New version, Deploy. This keeps the same web address.</li>
+<li>To run a job (like setupPrices): pick it in the function dropdown, press Run, allow access if asked.</li>
+</ul></div></div>
+
+<div class="lx-row">
+<div class="lx-head"><h2 class="lx-name">BrickLink API</h2><span class="lx-tag live">live</span>
+<span class="lx-what">Set prices for Brick Holocron.</span></div>
+<div class="lx-body">
+<ul class="lx-facts"><li><span class="lx-k">Connects to:</span> LEGO sheet script.</li><li><span class="lx-k">Keys go in:</span> LEGO sheet Script properties.</li><li><span class="lx-k">Watch out:</span> The access token's IP must be 0.0.0.0 with mask 0.0.0.0. A 255 mask fails.</li></ul>
+<ul class="lx-steps">
+<li>If prices stop: check the four keys are still in Script properties.</li>
+<li>Run setupPrices once from Apps Script.</li>
+</ul></div></div>
+
+<div class="lx-row">
+<div class="lx-head"><h2 class="lx-name">eBay developer</h2><span class="lx-tag wait">waiting on approval</span>
+<span class="lx-what">Price ranges from current listings, for the record store and later Brick Holocron.</span></div>
+<div class="lx-body">
+<ul class="lx-facts"><li><span class="lx-k">Connects to:</span> Vinyl sheet script now; LEGO sheet script later.</li><li><span class="lx-k">Keys go in:</span> Script properties, named EBAY_CLIENT_ID and EBAY_CLIENT_SECRET.</li></ul>
+<ul class="lx-steps">
+<li>Once approved, copy the production App ID and Cert ID from the eBay developer site.</li>
+<li>Add them to the vinyl sheet's Script properties under those two names.</li>
+<li>Paste the newest Code.gs, deploy a New version, then Run the price update.</li>
+</ul></div></div>
+
+<div class="lx-row">
+<div class="lx-head"><h2 class="lx-name">Discogs</h2><span class="lx-tag live">live</span>
+<span class="lx-what">Years, genres and lowest prices for the record store.</span></div>
+<div class="lx-body">
+<ul class="lx-facts"><li><span class="lx-k">Connects to:</span> Vinyl sheet script.</li><li><span class="lx-k">Keys go in:</span> Vinyl sheet Script properties.</li><li><span class="lx-k">Limit:</span> This account only gets a lowest price, so values show as "$X+".</li></ul>
+</div></div>
+
+<div class="lx-row">
+<div class="lx-head"><h2 class="lx-name">Supabase</h2><span class="lx-tag wait">testing</span>
+<span class="lx-what">The database behind the ARCH 6171 course site: student keys, quizzes, progress.</span></div>
+<div class="lx-body">
+<ul class="lx-facts"><li><span class="lx-k">Connects to:</span> arch6171 course site.</li><li><span class="lx-k">Keys go in:</span> Publishable key: config.js in the arch6171 repo. Admin key: yours only, typed on the site's admin page. The service_role key never goes anywhere.</li></ul>
+<ul class="lx-steps">
+<li>Change the database: Supabase dashboard, SQL Editor, paste the script, Run.</li>
+<li>Change the site's key: edit config.js in the arch6171 repo and commit.</li>
+</ul></div></div>
+
+</div>

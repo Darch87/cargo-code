@@ -1,0 +1,84 @@
+<!-- Experiments hub (Cargo page shows it through <div data-code="hub"></div>).
+     To add a tool: copy one <div class="xp-row"> ... </div> block into the right category (xp-group) and edit it.
+     Each preview image lives next to its tool on GitHub as preview.jpg. -->
+<style>
+.xp-list{max-width:1100px;margin:0 auto;padding:0 16px;color:#1a1a1a;font-family:inherit}
+.xp-row{display:grid;grid-template-columns:1fr 1.3fr;gap:32px;align-items:center;padding:32px 0;border-top:1px solid #d9d9d9}
+.xp-group .xp-row:last-child{border-bottom:1px solid #d9d9d9}
+.xp-title{font-size:1.6em;margin:0 0 8px}
+.xp-summary{font-size:1.05em;line-height:1.45;margin:0 0 12px}
+.xp-notes{font-size:.95em;line-height:1.45;margin:0;padding-left:1.1em;color:#444}
+.xp-notes li{margin:0 0 4px}
+.xp-open{display:inline-block;margin-top:14px;font-size:.95em;color:#1a1a1a;text-decoration:underline}
+.xp-preview{position:relative;display:block;aspect-ratio:16/10;background:#f1efe9;border:1px solid #cfcfcf;overflow:hidden;text-decoration:none;color:#555}
+.xp-preview span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.2em}
+.xp-preview img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top left}
+.xp-preview:hover{border-color:#1a1a1a}
+.xp-cat{font-size:.9em;letter-spacing:.08em;text-transform:uppercase;color:#555;margin:48px 0 0;padding:0 0 10px}
+.xp-cat:first-child{margin-top:8px}
+.xp-admin{display:block;text-align:right;margin:24px 0 8px;font-size:.85em;color:#666}
+@media (max-width:760px){.xp-row{grid-template-columns:1fr;gap:16px}}
+</style>
+
+<div class="xp-list">
+
+  <h3 class="xp-cat">Teaching tools</h3>
+  <div class="xp-group">
+
+  <div class="xp-row">
+    <div>
+      <h2 class="xp-title">ARCH 6171 Integration Seminar</h2>
+      <p class="xp-summary">The course site for the graduate integration seminar: lectures, labs, quizzes and assignments, with tools like the Climate Reader built in.</p>
+      <ul class="xp-notes">
+        <li>Students sign in with their own key.</li>
+        <li>Pick a week from the course map to see its lesson, lab and due dates.</li>
+      </ul>
+      <a class="xp-open" href="https://darch87.github.io/arch6171/" target="_blank">Open the tool</a>
+    </div>
+    <a class="xp-preview" href="https://darch87.github.io/arch6171/" target="_blank">
+      <span>ARCH 6171</span>
+      <img src="https://darch87.github.io/arch6171/preview.jpg" alt="" onerror="this.remove()">
+    </a>
+  </div>
+  </div>
+
+  <h3 class="xp-cat">Personal projects</h3>
+  <div class="xp-group">
+
+  <div class="xp-row">
+    <div>
+      <h2 class="xp-title">Brick Holocron</h2>
+      <p class="xp-summary">A visual explorer for a LEGO Star Wars collection: sets on a story timeline, a minifig cloud, and price charts.</p>
+      <ul class="xp-notes">
+        <li>Needs the guest passcode.</li>
+        <li>Three tabs across the top: Set timeline, Minifig cloud, Price charts.</li>
+        <li>On a phone, use the <a href="https://darch87.github.io/brick-holocron/mobile/" target="_blank">phone version</a>.</li>
+      </ul>
+      <a class="xp-open" href="https://darch87.github.io/brick-holocron/" target="_blank">Open the tool</a>
+    </div>
+    <a class="xp-preview" href="https://darch87.github.io/brick-holocron/" target="_blank">
+      <span>Brick Holocron</span>
+      <img src="https://darch87.github.io/brick-holocron/preview.jpg" alt="" onerror="this.remove()">
+    </a>
+  </div>
+
+  <div class="xp-row">
+    <div>
+      <h2 class="xp-title">Dedubs Den of Discs</h2>
+      <p class="xp-summary">A virtual record store for browsing a vinyl collection by genre and year.</p>
+      <ul class="xp-notes">
+        <li>Needs the guest passcode.</li>
+        <li>Flip through the bins, then tap a record for details.</li>
+      </ul>
+      <a class="xp-open" href="https://darch87.github.io/record-bins/" target="_blank">Open the tool</a>
+    </div>
+    <a class="xp-preview" href="https://darch87.github.io/record-bins/" target="_blank">
+      <span>Dedubs Den of Discs</span>
+      <img src="https://darch87.github.io/record-bins/preview.jpg" alt="" onerror="this.remove()">
+    </a>
+  </div>
+  </div>
+
+  <a class="xp-admin" href="lab-admin">Admin</a>
+
+</div>
